@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">wind-printer</string>
+    <string name="device">选择设备</string>
+</resources>

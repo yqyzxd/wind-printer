@@ -3,6 +3,7 @@ package com.wind.printer;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
@@ -11,9 +12,11 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.Spinner;
 
 import com.na.printer_base.Goods;
+import com.na.printer_base.Lable;
 import com.na.printer_base.Ticket;
 
 import java.io.ByteArrayInputStream;
@@ -28,19 +31,23 @@ public class MainActivity extends AppCompatActivity {
 
     Button btn;
     Spinner spinner;
-    Bitmap logoBitmap,qrcodeBitmap;
+    Bitmap logoBitmap, qrcodeBitmap;
+    ImageView iv;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        iv=findViewById(R.id.iv);
         spinner = findViewById(R.id.spinner);
         btn = findViewById(R.id.btn);
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String deviceName = spinner.getSelectedItem().toString();
-                // PrinterHelper.getInstance(MainActivity.this).printTicket(deviceName,buildTicket());
-                PrinterHelper.getInstance(MainActivity.this).readFromPrinter(deviceName);
+                //PrinterHelper.getInstance(MainActivity.this).printTicket(deviceName,buildTicket());
+                Lable lable=new Lable();
+                lable.setLabelBitmap(getLabelBitmap());
+                PrinterHelper.getInstance(MainActivity.this).printLable(deviceName,lable);
             }
         });
         InputStream is = null;
@@ -88,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private Ticket buildTicket(){
+    private Ticket buildTicket() {
         List<Goods> goodsList = new ArrayList<>();
         Goods latte = new Goods();
         latte.setName("拿铁");
@@ -134,18 +141,47 @@ public class MainActivity extends AppCompatActivity {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         image.compress(Bitmap.CompressFormat.JPEG, 100, baos);//质量压缩方法，这里100表示不压缩，把压缩后的数据存放到baos中
         int options = 100;
-        boolean flag=true;
-        while ( baos.toByteArray().length / 1024>10&&flag) {  //循环判断如果压缩后图片是否大于500kb,大于继续压缩
+        boolean flag = true;
+        while (baos.toByteArray().length / 1024 > 10 && flag) {  //循环判断如果压缩后图片是否大于500kb,大于继续压缩
             baos.reset();//重置baos即清空baos
             image.compress(Bitmap.CompressFormat.JPEG, options, baos);//这里压缩options%，把压缩后的数据存放到baos中
             options -= 10;//每次都减少10
-            if (options<20){
-                flag=false;
+            if (options < 20) {
+                flag = false;
             }
         }
-        System.out.println("baos.toByteArray().length:"+baos.toByteArray().length);
+        System.out.println("baos.toByteArray().length:" + baos.toByteArray().length);
         ByteArrayInputStream isBm = new ByteArrayInputStream(baos.toByteArray());//把压缩后的数据baos存放到ByteArrayInputStream中
         Bitmap bitmap = BitmapFactory.decodeStream(isBm, null, null);//把ByteArrayInputStream数据生成图片
         return bitmap;
+    }
+
+    private Bitmap getLabelBitmap() {
+
+
+        int width = 720;
+        int height = (int) (width * 0.67f);
+        Bitmap b = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        int density = b.getDensity();
+        System.out.println("density:" + density);
+        //b.setDensity(440);
+        Canvas canvas = new Canvas();
+        canvas.setBitmap(b);
+        View labelView = getLayoutInflater().inflate(R.layout.lable_layout, null, false);
+
+
+        int widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY);
+        int hieghtMeasureSpec = View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY);
+        labelView.measure(widthMeasureSpec, hieghtMeasureSpec);
+        int measuredWidth = labelView.getMeasuredWidth();
+        int measuredlHeight = labelView.getMeasuredHeight();
+        labelView.layout(0, 0, measuredWidth, measuredlHeight);
+        labelView.draw(canvas);
+        width = 720;
+        height = (int) (width * 0.67f);
+        b = Bitmap.createScaledBitmap(b, width, height, true);
+        iv.setImageBitmap(b);
+       //Bitmap b=BitmapFactory.decodeResource(getResources(),R.drawable.code);
+        return b;
     }
 }

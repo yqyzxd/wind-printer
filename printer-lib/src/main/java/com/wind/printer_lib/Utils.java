@@ -7,6 +7,10 @@ import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 
+import com.wind.printer_lib.aidl.LabelCommand;
+
+import java.io.UnsupportedEncodingException;
+
 /**
  * Created by wind on 2018/6/10.
  */
@@ -104,5 +108,120 @@ public class Utils {
         }
 
         return data;
+    }
+
+    public static byte[] pixToLabelCmd(byte[] src) {
+        byte[] data = new byte[src.length / 8];
+        int k = 0;
+
+        for(int j = 0; k < data.length; ++k) {
+            byte temp = (byte)(p0[src[j]] + p1[src[j + 1]] + p2[src[j + 2]] + p3[src[j + 3]] + p4[src[j + 4]] + p5[src[j + 5]] + p6[src[j + 6]] + src[j + 7]);
+            data[k] = (byte)(~temp);
+            j += 8;
+        }
+
+        return data;
+    }
+
+    public static byte[] printTscDraw(int x, int y, LabelCommand.BITMAP_MODE mode, Bitmap bitmap) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        byte[] bitbuf = new byte[width / 8];
+        String str = "BITMAP " + x + "," + y + "," + width / 8 + "," + height + "," + mode.getValue() + ",";
+        byte[] strPrint = null;
+
+        try {
+            strPrint = str.getBytes("GB2312");
+        } catch (UnsupportedEncodingException var30) {
+            var30.printStackTrace();
+        }
+
+        byte[] imgbuf = new byte[width / 8 * height + strPrint.length + 8];
+
+        int s;
+        for(s = 0; s < strPrint.length; ++s) {
+            imgbuf[s] = strPrint[s];
+        }
+
+        s = strPrint.length - 1;
+
+        for(int i = 0; i < height; ++i) {
+            int k;
+            for(k = 0; k < width / 8; ++k) {
+                int c0 = bitmap.getPixel(k * 8, i);
+                byte p0;
+                if(c0 == -1) {
+                    p0 = 1;
+                } else {
+                    p0 = 0;
+                }
+
+                int c1 = bitmap.getPixel(k * 8 + 1, i);
+                byte p1;
+                if(c1 == -1) {
+                    p1 = 1;
+                } else {
+                    p1 = 0;
+                }
+
+                int c2 = bitmap.getPixel(k * 8 + 2, i);
+                byte p2;
+                if(c2 == -1) {
+                    p2 = 1;
+                } else {
+                    p2 = 0;
+                }
+
+                int c3 = bitmap.getPixel(k * 8 + 3, i);
+                byte p3;
+                if(c3 == -1) {
+                    p3 = 1;
+                } else {
+                    p3 = 0;
+                }
+
+                int c4 = bitmap.getPixel(k * 8 + 4, i);
+                byte p4;
+                if(c4 == -1) {
+                    p4 = 1;
+                } else {
+                    p4 = 0;
+                }
+
+                int c5 = bitmap.getPixel(k * 8 + 5, i);
+                byte p5;
+                if(c5 == -1) {
+                    p5 = 1;
+                } else {
+                    p5 = 0;
+                }
+
+                int c6 = bitmap.getPixel(k * 8 + 6, i);
+                byte p6;
+                if(c6 == -1) {
+                    p6 = 1;
+                } else {
+                    p6 = 0;
+                }
+
+                int c7 = bitmap.getPixel(k * 8 + 7, i);
+                byte p7;
+                if(c7 == -1) {
+                    p7 = 1;
+                } else {
+                    p7 = 0;
+                }
+
+                int value = p0 * 128 + p1 * 64 + p2 * 32 + p3 * 16 + p4 * 8 + p5 * 4 + p6 * 2 + p7;
+                bitbuf[k] = (byte)value;
+            }
+
+            for(k = 0; k < width / 8; ++k) {
+                ++s;
+                imgbuf[s] = bitbuf[k];
+            }
+        }
+
+        return imgbuf;
     }
 }

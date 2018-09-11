@@ -18,6 +18,7 @@ import android.support.annotation.Nullable;
 
 import com.wind.printer_lib.aidl.EscCommand;
 import com.wind.printer_lib.aidl.IPrinter;
+import com.wind.printer_lib.aidl.LabelCommand;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -166,9 +167,53 @@ public class PrinterService extends Service {
         }
 
         @Override
+        public int sendLabelCommand(final String deviceName, final LabelCommand command) throws RemoteException {
+            Future<Integer> futureTask=mExecutorService.submit(new Callable<Integer>() {
+                @Override
+                public Integer call() throws Exception {
+                    int retCode=ErrorCode.CODE_ERROR;
+                    UsbEndpoint endpointOut = mUsbEndpointOutMap.get(deviceName);
+                    if (endpointOut != null) {
+                        ArrayList<Byte> commandList = command.getCommand();
+                        ArrayList<Byte> partOfCommand = new ArrayList<>(commandList.size());
+
+                        for (int i = 0; i < commandList.size(); i++) {
+                            if (partOfCommand.size() >= 1024) {
+                                //Thread.sleep(300);可以解决某些机型在小票上打印两张图片失败的情况，但是会导致打印略显卡顿
+                                //长度超过1024直接打印，避免一次性打印太大，打印机缓存存不下，导致数据丢失
+                                retCode=bulk(deviceName, partOfCommand);
+                                partOfCommand.clear();
+                                System.out.println("bulk retval:"+retCode);
+                                if (retCode!=ErrorCode.CODE_SUCCESS){
+                                    return retCode;
+                                }
+
+                            }
+                            partOfCommand.add(commandList.get(i));
+                        }
+                        retCode=bulk(deviceName, partOfCommand);
+                    }
+
+
+                    return retCode;
+                }
+            });
+            int code=ErrorCode.CODE_ERROR;
+            try {
+                code=futureTask.get();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
+            return code;
+        }
+
+        @Override
         public void closeDevice(String deviceName) throws RemoteException {
             mUsbDeviceMap.remove(deviceName);
         }
+
 
 
     };

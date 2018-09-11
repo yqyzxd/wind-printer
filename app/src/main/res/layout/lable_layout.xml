@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<com.wind.printer.WidthRatioRelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/white"
+    app:ratio="0.7">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_marginLeft="40dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="大波霸奶茶"
+            android:textSize="32sp"
+            android:textColor="@android:color/black"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="冰三分甜"
+            android:textColor="@android:color/black"
+            android:textStyle="bold"
+            android:textSize="28sp" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="珍珠"
+                android:textSize="22sp"
+                android:textColor="@android:color/black"
+                android:padding="2dp"
+                android:background="@drawable/shape_rect"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="红豆"
+                android:textColor="@android:color/black"
+                android:layout_marginLeft="2dp"
+                android:textSize="22sp"
+                android:padding="2dp"
+                android:background="@drawable/shape_rect"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="红豆"
+                android:textColor="@android:color/black"
+                android:layout_marginLeft="2dp"
+                android:textSize="22sp"
+                android:padding="2dp"
+                android:background="@drawable/shape_rect"/>
+        </LinearLayout>
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="缘分杯"
+            android:textColor="@android:color/black"
+            android:textSize="32sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="女名校学霸"
+            android:textSize="28sp"
+            android:textColor="@android:color/black"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="少妇"
+            android:textColor="@android:color/black"
+            android:textSize="24sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="09-07 14:24"
+            android:textColor="@android:color/black"
+            android:textSize="22sp" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_centerVertical="true"
+        android:layout_alignParentRight="true"
+        android:src="@drawable/qrcode"
+        android:layout_margin="30dp"
+        android:textColor="@android:color/black"
+
+        />
+
+</com.wind.printer.WidthRatioRelativeLayout>

@@ -4,12 +4,14 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.graphics.Bitmap;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.IBinder;
 import android.os.RemoteException;
 
 import com.na.printer_base.Goods;
+import com.na.printer_base.Lable;
 import com.na.printer_base.Ticket;
 import com.wind.printer_lib.ConnectMode;
 import com.wind.printer_lib.DeviceUtil;
@@ -17,6 +19,7 @@ import com.wind.printer_lib.ErrorCode;
 import com.wind.printer_lib.PrinterService;
 import com.wind.printer_lib.aidl.EscCommand;
 import com.wind.printer_lib.aidl.IPrinter;
+import com.wind.printer_lib.aidl.LabelCommand;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -115,7 +118,48 @@ public class PrinterHelper {
         }
     }
 
+    public void printLable(String deviceName, Lable lable){
+        Bitmap b=lable.getLabelBitmap();
 
+        //Bitmap.createScaledBitmap()
+        LabelCommand tsc = new LabelCommand();
+        tsc.addSize(60, 40); // 设置标签尺寸，按照实际尺寸设置
+        tsc.addGap(2); // 设置标签间隙，按照实际尺寸设置，如果为无间隙纸则设置为0
+        tsc.addDirection(LabelCommand.DIRECTION.BACKWARD, LabelCommand.MIRROR.NORMAL);// 设置打印方向
+        tsc.addReference(0, 0);// 设置原点坐标
+        //tsc.addTear(ENABLE.ON); // 撕纸模式开启
+        tsc.addDensity(LabelCommand.DENSITY.DNESITY1);
+        tsc.addCls();// 清除打印缓冲区
+
+       /* tsc.addText(20, 30, FONTTYPE.KOREAN, ROTATION.ROTATION_0, FONTMUL.MUL_1, FONTMUL.MUL_1,
+                "조선말");*/
+      /*  tsc.addText(100, 30, FONTTYPE.SIMPLIFIED_CHINESE, ROTATION.ROTATION_0, FONTMUL.MUL_1, FONTMUL.MUL_1,
+                "简体字");
+        tsc.addText(180, 30, FONTTYPE.TRADITIONAL_CHINESE, ROTATION.ROTATION_0, FONTMUL.MUL_1, FONTMUL.MUL_1,
+                "繁體字");*/
+
+        // 绘制图片
+        //b = BitmapFactory.decodeResource(getResources(), R.drawable.qrcode);
+        //tsc.addText(0, 0, FONTTYPE.SIMPLIFIED_CHINESE, ROTATION.ROTATION_0, FONTMUL.MUL_2, FONTMUL.MUL_2,"波霸奶茶");
+        tsc.addBitmap(0, 0, LabelCommand.BITMAP_MODE.OVERWRITE, b.getWidth(), b);
+
+        //绘制二维码
+        //tsc.addQRCode(105, 75, EEC.LEVEL_L, 5, ROTATION.ROTATION_0, " www.smarnet.cc");
+        // 绘制一维条码
+        //tsc.add1DBarcode(50, 350, BARCODETYPE.CODE128, 100, READABEL.EANBEL, ROTATION.ROTATION_0, "SMARNET");
+        tsc.addPrint(1, 1); // 打印标签
+        //tsc.addSound(2, 100); // 打印标签后 蜂鸣器响
+        //tsc.addCashdrwer(LabelCommand.FOOT.F5, 255, 255);
+       int ret;
+        try {
+            ret = mPrinter.sendLabelCommand(deviceName, tsc);
+            System.out.println("=======printTicket return:rs"+ret);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            System.out.println("=======printTicket error");
+        }
+
+    }
 
     /**
      * 打印小票

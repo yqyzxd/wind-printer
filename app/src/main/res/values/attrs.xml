@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <declare-styleable name="RatioLayout">
+        <attr name="ratio" format="float" />
+    </declare-styleable>
+
+    <declare-styleable name="CarouselViewPager">
+
+        <attr name="dots_margin_bottom" format="dimension"></attr>
+        <attr name="dot_inter_dot_margin" format="dimension"></attr>
+        <attr name="dot_size" format="dimension"></attr>
+        <attr name="dot_color_selector" format="reference"></attr>
+
+    </declare-styleable>
+</resources>

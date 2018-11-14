@@ -131,11 +131,6 @@ public class EscCommand implements Parcelable{
         printBitmap(bitmap,width,BitmapMode.NORMAL);
     }
 
-    public void addQueryPrinterStatus() {
-        byte[] command = new byte[]{29, 114, 1};
-        addCommand(command);
-    }
-
     /**
      * 打印光栅位图
      * 十进制码   29 118 48 m  xL xH yL yH d1...dk
@@ -181,11 +176,19 @@ public class EscCommand implements Parcelable{
     }
 
     /**
+     * 查询打印机状态命令
+     */
+    public void addQueryPrinterStatus() {
+        byte[] command = new byte[]{29, 114, 49};
+        this.addCommand(command);
+    }
+
+    /**
      * 开启钱箱
      * 十进制码 27 112 m t1 t2
      */
     public void openCashBox(){
-        byte [] command=new byte[]{27,112,5,(byte) 255,(byte)255};
+        byte [] command=new byte[]{27,112,1,(byte) 255,(byte)255};
         addCommand(command);
     }
 

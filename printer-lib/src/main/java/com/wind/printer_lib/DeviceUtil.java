@@ -18,4 +18,31 @@ public class DeviceUtil {
         return false;
 
     }
+
+    public static boolean needMoreSleepTime(UsbDevice device){
+        int vid=device.getVendorId();
+        int pid=device.getProductId();
+        if (pid==85 && vid==1137){//佳博gp5890xiii
+            return true;
+        }
+
+        return false;
+
+    }
+
+    /**
+     * 是否支持纸传感器
+     * @param device
+     * @return
+     */
+    public static boolean enablePaperSensor(UsbDevice device) {
+        int vid=device.getVendorId();
+        int pid=device.getProductId();
+        //vid:26728--pid:1280
+        if (vid==26728 && pid==1280){
+            return true;
+        }
+        return false;
+
+    }
 }

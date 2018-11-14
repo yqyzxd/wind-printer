@@ -9,4 +9,5 @@ interface IPrinter {
    int sendEscCommand(String deviceName,in EscCommand command);
    int sendLabelCommand(String deviceName,in LabelCommand command);
    void closeDevice(String deviceName);
+   int getDeviceState(String deviceName);
 }

@@ -9,13 +9,16 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.text.TextUtils;
 
 import com.na.printer_base.Goods;
-import com.na.printer_base.Lable;
+import com.na.printer_base.Label;
 import com.na.printer_base.Ticket;
 import com.wind.printer_lib.ConnectMode;
+import com.wind.printer_lib.DeviceState;
 import com.wind.printer_lib.DeviceUtil;
 import com.wind.printer_lib.ErrorCode;
+import com.wind.printer_lib.PrinterException;
 import com.wind.printer_lib.PrinterService;
 import com.wind.printer_lib.aidl.EscCommand;
 import com.wind.printer_lib.aidl.IPrinter;
@@ -33,61 +36,89 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 
 public class PrinterHelper {
-    private static  PrinterHelper instance=null;
+    private static PrinterHelper instance = null;
     private IPrinter mPrinter;
-    private CopyOnWriteArrayList<String> mDeviceNameList=new CopyOnWriteArrayList<>();
-    private Set<String> mConnectedDevice=new HashSet<>();
+    private CopyOnWriteArrayList<String> mDeviceNameList = new CopyOnWriteArrayList<>();
+    private Set<String> mConnectedDevice = new HashSet<>();
     private boolean mBinding;//是否正在bindService
     private UsbManager mUsbManager;
-    public static PrinterHelper getInstance(Context context){
-        if (instance ==null){
-            synchronized (PrinterHelper.class){
-                if (instance==null){
-                    instance=new PrinterHelper(context);
+    private boolean mContinuePrint;
+
+    public static PrinterHelper getInstance(Context context) {
+        if (instance == null) {
+            synchronized (PrinterHelper.class) {
+                if (instance == null) {
+                    instance = new PrinterHelper(context);
                 }
             }
         }
         return instance;
     }
 
-    private PrinterHelper(Context context){
-        if (mPrinter==null) {
+    private PrinterHelper(Context context) {
+        if (mPrinter == null) {
             if (!mBinding) {
                 mBinding = true;
                 Intent service = new Intent(context, PrinterService.class);
                 context.bindService(service, new PrinterConnection(), Context.BIND_AUTO_CREATE);
 
-                mUsbManager= (UsbManager) context.getSystemService(Context.USB_SERVICE);
+                mUsbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
             }
+            //IntentFilter filter=new IntentFilter("action.device.receipt.response");
+            //context.registerReceiver(new PrinterFinishReceiver(),filter);
         }
     }
 
+
+
+    /*private class PrinterFinishReceiver extends BroadcastReceiver{
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (mContinuePrint){
+                String action = intent.getAction();
+                if ("action.device.receipt.response".equals(action)) {
+                    //收到打印结束消息
+                    System.out.println("打印结束，开始新的打印");
+                    mContinuePrint=false;
+                    if (TextUtils.isEmpty(mPrintingDeviceName) || mPrintingTicket==null) {
+                      return;
+                    }else {
+                        printTicket(mPrintingDeviceName, mPrintingTicket);
+                    }
+                }
+            }
+
+        }
+    }*/
+
     /**
      * 连接指定设备
+     *
      * @param deviceName
      */
-    public synchronized void connectDevice(String deviceName){
+    public synchronized void connectDevice(String deviceName) {
         mDeviceNameList.add(deviceName);
-        if (mPrinter==null){
+        if (mPrinter == null) {
             try {
                 instance.wait();
-                if (mPrinter!=null){
+                if (mPrinter != null) {
                     openDevice();
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        }else {
+        } else {
             openDevice();
         }
 
     }
 
     private synchronized void openDevice() {
-        for (String deviceName:mDeviceNameList){
+        for (String deviceName : mDeviceNameList) {
             try {
-                int code=mPrinter.openDevice(deviceName, ConnectMode.MODE_USB);
-                if (code== ErrorCode.CODE_SUCCESS){
+                int code = mPrinter.openDevice(deviceName, ConnectMode.MODE_USB);
+                if (code == ErrorCode.CODE_SUCCESS) {
                     mConnectedDevice.add(deviceName);
                 }
             } catch (RemoteException e) {
@@ -98,7 +129,62 @@ public class PrinterHelper {
         mDeviceNameList.clear();
     }
 
-    class PrinterConnection implements ServiceConnection{
+    public int getDeviceState(String deviceName) {
+        try {
+            return mPrinter.getDeviceState(deviceName);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        return DeviceState.STATE_OFFLINE;
+    }
+
+    public void printLabelTest(String deviceName, Label label) {
+        Bitmap b = label.getLabelBitmap();
+        LabelCommand tsc = new LabelCommand();
+        tsc.addSize(60, 40); // 设置标签尺寸，按照实际尺寸设置
+        tsc.addGap(2); // 设置标签间隙，按照实际尺寸设置，如果为无间隙纸则设置为0
+        tsc.addDirection(LabelCommand.DIRECTION.BACKWARD, LabelCommand.MIRROR.NORMAL);// 设置打印方向
+        tsc.addReference(0, 0);// 设置原点坐标
+        //tsc.addTear(ENABLE.ON); // 撕纸模式开启
+        tsc.addDensity(LabelCommand.DENSITY.DNESITY1);
+        tsc.addCls();// 清除打印缓冲区
+
+        tsc.addBitmap(0, 0, LabelCommand.BITMAP_MODE.OVERWRITE, b.getWidth(), b);
+
+        tsc.addPrint(1, 1); // 打印标签
+
+        int ret;
+        try {
+            ret = mPrinter.sendLabelCommand(deviceName, tsc);
+            System.out.println("=======printTicket return:rs" + ret);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            System.out.println("=======printTicket error");
+        }
+    }
+
+    public void printTicketTest(String deviceName) {
+        EscCommand esc = new EscCommand();
+        esc.reset();
+        esc.feedLines((byte) 1);
+        esc.setGravity(EscCommand.Gravity.CENTER);
+        esc.printlnString("这是小票模式");
+        esc.feedLines(5);
+        int rs;
+        try {
+            rs = mPrinter.sendEscCommand(deviceName, esc);
+
+            if (rs != ErrorCode.CODE_SUCCESS) {
+                throw new PrinterException("打印机异常，请重新连接");
+            }
+            System.out.println("=======printTicket return:rs" + rs);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            System.out.println("=======printTicket error");
+        }
+    }
+
+    class PrinterConnection implements ServiceConnection {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             synchronized (instance) {
@@ -112,16 +198,15 @@ public class PrinterHelper {
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
-            mPrinter=null;
-            mBinding=false;
+            mPrinter = null;
+            mBinding = false;
             instance.notify();
         }
     }
 
-    public void printLable(String deviceName, Lable lable){
-        Bitmap b=lable.getLabelBitmap();
+    public void printLabel(String deviceName, Label lable) {
+        Bitmap b = lable.getLabelBitmap();
 
-        //Bitmap.createScaledBitmap()
         LabelCommand tsc = new LabelCommand();
         tsc.addSize(60, 40); // 设置标签尺寸，按照实际尺寸设置
         tsc.addGap(2); // 设置标签间隙，按照实际尺寸设置，如果为无间隙纸则设置为0
@@ -150,10 +235,10 @@ public class PrinterHelper {
         tsc.addPrint(1, 1); // 打印标签
         //tsc.addSound(2, 100); // 打印标签后 蜂鸣器响
         //tsc.addCashdrwer(LabelCommand.FOOT.F5, 255, 255);
-       int ret;
+        int ret;
         try {
             ret = mPrinter.sendLabelCommand(deviceName, tsc);
-            System.out.println("=======printTicket return:rs"+ret);
+            System.out.println("=======printTicket return:rs" + ret);
         } catch (RemoteException e) {
             e.printStackTrace();
             System.out.println("=======printTicket error");
@@ -161,11 +246,68 @@ public class PrinterHelper {
 
     }
 
+    private String mPrintingDeviceName;
+    private Ticket mPrintingTicket;
+
+    public void printLabel(String deviceName, Label lable, int printCount) {
+        for (int i = 0; i < printCount; i++) {
+            printLabel(deviceName, lable);
+        }
+    }
+
+    public void printTicket(String deviceName, Ticket ticket, int printCount) {
+        mContinuePrint = true;//继续打印
+        mPrintingDeviceName = deviceName;
+        mPrintingTicket = ticket;
+      /*  boolean needMoreTime = false;
+        boolean enablePaperSensor = false;
+        for (UsbDevice device : mUsbManager.getDeviceList().values()) {
+            if (deviceName.equals(device.getDeviceName())) {
+                enablePaperSensor = DeviceUtil.enablePaperSensor(device);
+                needMoreTime = DeviceUtil.needMoreSleepTime(device);
+                break;
+            }
+        }*/
+
+        for (int i = 0; i < printCount; i++) {
+            printTicket(deviceName, ticket);
+        }
+
+       /* if (enablePaperSensor){
+            printTicket(deviceName, ticket);
+        }else {
+            for (int i = 0; i < printCount; i++) {
+                printTicket(deviceName, ticket);
+            }
+        }*/
+    }
+
+    public void queryPrinterStates(String deviceName) {
+        EscCommand esc = new EscCommand();
+        esc.addQueryPrinterStatus();
+
+      /*  Vector<Byte> datas = esc.getCommand();
+        byte[] bytes = GpUtils.ByteTo_byte(datas);
+        String sss = Base64.encodeToString(bytes, Base64.DEFAULT);*/
+        // System.out.println("=======printTicket string:" + sss);
+        int rs;
+        try {
+            rs = mPrinter.sendEscCommand(deviceName, esc);
+            if (rs != ErrorCode.CODE_SUCCESS) {
+                throw new PrinterException("打印机异常，请重新连接");
+            }
+            System.out.println("=======printTicket return:rs" + rs);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            System.out.println("=======printTicket error");
+        }
+    }
+
     /**
      * 打印小票
      */
-    public void printTicket(String deviceName,Ticket ticket) {
-        if (!mConnectedDevice.contains(deviceName)){
+    public void printTicket(String deviceName, Ticket ticket) throws PrinterException {
+        if (!mConnectedDevice.contains(deviceName)) {
             return;
         }
         System.out.println("=======printTicket start");
@@ -177,43 +319,49 @@ public class PrinterHelper {
 
         printSplitLine(esc);
 
-        printNumberAndCashier(esc,ticket);
+        printNumberAndCashier(esc, ticket);
         printSplitLine(esc);
 
-        printGoods(esc,ticket.getGoodsList());
+        printGoods(esc, ticket.getGoodsList());
         printSplitLine(esc);
-        printMoney(esc,ticket);
+        printMoney(esc, ticket);
 
         printSplitLine(esc);
 
         Date date = new Date(System.currentTimeMillis());
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
         esc.printlnString("日期：" + dateFormat.format(date));
+        if (!TextUtils.isEmpty(ticket.getRemark())) {
+            printSplitLine(esc);
+            esc.printlnString("备注：" + ticket.getRemark());
+        }
+
         esc.setGravity(EscCommand.Gravity.CENTER);
 
-        for (UsbDevice device:mUsbManager.getDeviceList().values()){
-            if (deviceName.equals(device.getDeviceName())){
+        for (UsbDevice device : mUsbManager.getDeviceList().values()) {
+            if (deviceName.equals(device.getDeviceName())) {
                 if (!DeviceUtil.enableQrcode(device)) {
                     esc.printBitmap(ticket.getQrcodeBitmap(), 200, EscCommand.BitmapMode.NORMAL);
-                }else {
+                } else {
                     //支持二维码打印
-                    String data="http://weixin.qq.com/r/-S4JEVzEagEVrRhy93vv";
-                    esc.printQrcode(data,6,49);
+                    String data = "http://weixin.qq.com/r/-S4JEVzEagEVrRhy93vv";
+                    esc.printQrcode(data, 6, 49);
                 }
                 break;
             }
 
         }
-
         esc.feedLines(1);
-        esc.printlnString( ticket.getWelcome());
+        esc.printlnString(ticket.getWelcome());
 
-        esc.feedLines((byte)5);
-        if (ticket.isNeedOpenCashBox()){
+        esc.feedLines((byte) 5);
+        if (ticket.isNeedOpenCashBox()) {
             //开钱箱
             esc.openCashBox();
         }
 
+        //打印机打印结束通知
+        esc.addQueryPrinterStatus();
 
       /*  Vector<Byte> datas = esc.getCommand();
         byte[] bytes = GpUtils.ByteTo_byte(datas);
@@ -223,30 +371,16 @@ public class PrinterHelper {
         try {
             rs = mPrinter.sendEscCommand(deviceName, esc);
 
-
-            System.out.println("=======printTicket return:rs"+rs);
+            if (rs != ErrorCode.CODE_SUCCESS) {
+                throw new PrinterException("打印机异常，请重新连接");
+            }
+            System.out.println("=======printTicket return:rs" + rs);
         } catch (RemoteException e) {
             e.printStackTrace();
             System.out.println("=======printTicket error");
         }
     }
 
-
-    public void readFromPrinter(String deviceName){
-        EscCommand esc=new EscCommand();
-        esc.addQueryPrinterStatus();
-        int rs;
-        try {
-            rs = mPrinter.sendEscCommand(deviceName, esc);
-
-
-            System.out.println("=======printTicket return:rs"+rs);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-            System.out.println("=======printTicket error");
-        }
-
-    }
 
     private void printSplitLine(EscCommand esc) {
         esc.printlnString("------------------------------");
@@ -254,13 +388,14 @@ public class PrinterHelper {
 
     private void printNumberAndCashier(EscCommand esc, Ticket ticket) {
         esc.setGravity(EscCommand.Gravity.LEFT);
-        esc.printlnString("单号：" + ticket.getOrderNo() );
+        esc.printlnString("单号：" + ticket.getOrderNo());
         esc.printlnString("收银员：" + ticket.getCashier());
 
     }
+
     private void printBrand(EscCommand esc, Ticket ticket) {
         esc.setGravity(EscCommand.Gravity.CENTER);
-        esc.printBitmap(ticket.getMerchantLogo(),240, EscCommand.BitmapMode.NORMAL);
+        esc.printBitmap(ticket.getMerchantLogo(), 240, EscCommand.BitmapMode.NORMAL);
         esc.printlnString(ticket.getMerchantName());
     }
 
@@ -295,7 +430,7 @@ public class PrinterHelper {
             String line = serialNumber + price + num + totalPrice;
 
 
-            esc.printlnString(line );
+            esc.printlnString(line);
 
 
         }
@@ -307,7 +442,7 @@ public class PrinterHelper {
         String count = "数量：" + ticket.getCount();
         String total = "总计：" + ticket.getTotalPrice();
         count = String.format("%-12s", count);
-        String countAndTotal = count + total ;
+        String countAndTotal = count + total;
         esc.setGravity(EscCommand.Gravity.LEFT);
         esc.printlnString(countAndTotal);
         String discountAmount = "优惠：" + ticket.getDiscountAmount();
@@ -324,5 +459,30 @@ public class PrinterHelper {
         String cashAndChange = cash + change;
         esc.printlnString(cashAndChange);
 
+        if (ticket.isShowBalance()) {
+            String balance = "余额：" + ticket.getBalance();
+            balance = String.format("%-12s", balance);
+            esc.printlnString(balance);
+        }
+
+    }
+
+    /**
+     * 仅打开钱箱
+     */
+    public void openCashBox(String deviceName) {
+        EscCommand esc = new EscCommand();
+        esc.openCashBox();
+
+        int rs;
+        try {
+            rs = mPrinter.sendEscCommand(deviceName, esc);
+
+            if (rs != ErrorCode.CODE_SUCCESS) {
+                throw new PrinterException("打印机异常，请重新连接");
+            }
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 }
